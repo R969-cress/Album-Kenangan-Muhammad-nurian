@@ -89,10 +89,57 @@
       0 2px 3px rgba(0,0,0,0.15),
       0 18px 34px var(--paper-shadow);
     will-change: transform, opacity;
-    transition: transform 0.45s cubic-bezier(.22,1,.36,1), opacity 0.4s ease;
+    transition: transform 0.5s cubic-bezier(.22,1,.36,1), opacity 0.45s ease, filter 0.45s ease;
     touch-action: none;
     cursor: grab;
     user-select:none;
+  }
+  @keyframes enterFade{
+    from{ opacity:0; transform: scale(0.94) rotate(var(--rot,0deg)); filter: blur(6px); }
+  }
+  @keyframes enterDrop{
+    from{ opacity:0; transform: translateY(-60px) scale(0.9) rotate(var(--rot,0deg)); }
+  }
+  @keyframes enterSpin{
+    from{ opacity:0; transform: scale(0.8) rotate(calc(var(--rot,0deg) - 20deg)); }
+  }
+  @keyframes enterRise{
+    from{ opacity:0; transform: translateY(50px) scale(0.96) rotate(var(--rot,0deg)); filter: blur(3px); }
+  }
+
+  .music-toggle{
+    position:fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 14px);
+    left: 18px;
+    z-index:6;
+    width:38px; height:38px;
+    border-radius:50%;
+    border: 1.5px solid rgba(247,242,231,0.25);
+    background: rgba(247,242,231,0.06);
+    backdrop-filter: blur(6px);
+    color: var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    font-size:16px;
+  }
+  .music-toggle.muted{ color: rgba(247,242,231,0.4); }
+
+  .start-overlay{
+    position:fixed; inset:0; z-index:20;
+    background: radial-gradient(ellipse at 50% 40%, #3a281c 0%, var(--stage-deep) 100%);
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:18px;
+    text-align:center; padding:20px;
+  }
+  .start-overlay .eyebrow{ color:var(--gold); letter-spacing:3px; font-size:11px; text-transform:uppercase; opacity:0.8;}
+  .start-overlay h2{
+    font-family:'Fraunces', serif; font-style:italic; font-weight:600;
+    color: var(--paper); font-size: clamp(24px, 5vw, 38px); margin:4px 0 0;
+  }
+  .start-overlay .btn{
+    margin-top:10px; width:auto; height:auto; padding:14px 30px; border-radius:30px;
+    font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
+    border: 1.5px solid rgba(201,162,74,0.5); color: var(--gold);
   }
   .card:active{ cursor: grabbing; }
   .card.dragging{ transition: none; }
@@ -258,6 +305,15 @@
 <div class="grain"></div>
 <div class="vignette"></div>
 
+<div class="start-overlay" id="startOverlay">
+  <div class="eyebrow">Muhammad Nurian</div>
+  <h2>Album Kenangan Keluarga</h2>
+  <div class="btn" id="startBtn">&#9658; Mulai</div>
+</div>
+
+<audio id="bgm" src="audio/bgm.mp3" loop preload="auto"></audio>
+<div class="music-toggle" id="musicToggle" aria-label="Musik">&#9835;</div>
+
 <header>
   <div class="eyebrow">Muhammad Nurian</div>
   <h1>Album Kenangan Keluarga</h1>
@@ -341,6 +397,8 @@ function seedRotation(i){
   return seeds[i % seeds.length];
 }
 
+const ENTER_ANIMS = ['enterFade', 'enterDrop', 'enterSpin', 'enterRise'];
+
 function buildCard(imgIndex, stackPos){
   const card = document.createElement('div');
   card.className = 'card';
@@ -349,8 +407,14 @@ function buildCard(imgIndex, stackPos){
   const scale = 1 - stackPos * 0.045;
   const yOff = stackPos * 10;
   card.dataset.rot = baseRot;
-  card.style.transform = `translateY(${yOff}px) scale(${scale}) rotate(${stackPos === 0 ? baseRot * 0.4 : baseRot}deg)`;
+  const finalRot = stackPos === 0 ? baseRot * 0.4 : baseRot;
+  card.style.setProperty('--rot', finalRot + 'deg');
+  card.style.transform = `translateY(${yOff}px) scale(${scale}) rotate(${finalRot}deg)`;
   card.style.opacity = stackPos > 2 ? '0' : '1';
+  if (stackPos === 0){
+    const anim = ENTER_ANIMS[imgIndex % ENTER_ANIMS.length];
+    card.style.animation = `${anim} 0.55s cubic-bezier(.22,1,.36,1)`;
+  }
 
   const pin = document.createElement('div');
   pin.className = 'pin';
@@ -488,6 +552,30 @@ document.getElementById('restartBtn').addEventListener('click', () => { index = 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') goNext('left');
   if (e.key === 'ArrowLeft') goPrev();
+});
+
+// Music controls
+const bgm = document.getElementById('bgm');
+const musicToggle = document.getElementById('musicToggle');
+const startOverlay = document.getElementById('startOverlay');
+const startBtn = document.getElementById('startBtn');
+let musicOn = true;
+
+startBtn.addEventListener('click', () => {
+  startOverlay.style.display = 'none';
+  bgm.volume = 0.55;
+  bgm.play().catch(() => { musicOn = false; musicToggle.classList.add('muted'); });
+});
+
+musicToggle.addEventListener('click', () => {
+  musicOn = !musicOn;
+  if (musicOn){
+    bgm.play().catch(() => {});
+    musicToggle.classList.remove('muted');
+  } else {
+    bgm.pause();
+    musicToggle.classList.add('muted');
+  }
 });
 
 render();
